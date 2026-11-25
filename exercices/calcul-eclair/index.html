@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Calcul éclair · Méninges</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Méninges">
+<link rel="apple-touch-icon" href="../../icones/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="../../icones/favicon-32.png">
+<link rel="manifest" href="../../manifest.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Inter:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="../../commun/style.css">
+<style>
+  :root { --exo: #2c5bd6; }
+  #jeu { justify-content: flex-start; gap: 12px; }
+  .zone-calcul {
+    flex: 1; min-height: 150px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+    background: var(--surface); border: 2px solid var(--line); border-radius: 18px; padding: 10px;
+  }
+  .calcul {
+    font-family: var(--f-display); font-weight: 800; font-size: clamp(3rem, 16vw, 4.6rem); line-height: 1;
+    font-variant-numeric: tabular-nums; letter-spacing: -.01em; white-space: nowrap;
+  }
+  .saisie {
+    min-width: 3.2ch; min-height: 1.2em; font-family: var(--f-display); font-weight: 800; font-size: clamp(2rem, 11vw, 3rem); line-height: 1.2;
+    text-align: center; font-variant-numeric: tabular-nums; border-bottom: 3px solid var(--line); color: var(--exo);
+  }
+  /* En sombre, le bleu de l'exercice manque de contraste comme couleur de texte : version éclaircie pour le texte seulement */
+  @media (prefers-color-scheme: dark) { .saisie { color: var(--ink); } .barre h1 span, .score, .compte { color: #7a9cff; } }
+  .zone-calcul.bon { border-color: var(--bon); background: color-mix(in srgb, var(--bon) 18%, var(--surface)); }
+  .zone-calcul.faux { border-color: var(--faux); background: color-mix(in srgb, var(--faux) 18%, var(--surface)); }
+  .pave button { color: var(--ink); user-select: none; -webkit-user-select: none; }
+  .pave button:active { filter: brightness(.9); }
+  .pave button.ok { color: var(--on-color); }
+  #chrono { font-size: 1rem; color: var(--ink); }
+  @media (max-height: 620px) { .pave button { height: 50px; } .zone-calcul { min-height: 120px; } }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="barre">
+    <a class="retour" href="../../">← Méninges</a>
+    <h1><span>Calcul éclair</span></h1>
+  </div>
+
+  <section class="ecran" id="intro">
+    <h2>Calcul éclair</h2>
+    <p>Résous 20 petits calculs le plus vite possible. Tape la réponse : elle est validée toute seule dès que tu as tapé assez de chiffres.</p>
+    <p>Une erreur ? Tu recommences le même calcul, mais le chrono tourne toujours.</p>
+    <p id="record-intro"></p>
+    <div class="actions"><button class="btn principal" id="b-commencer" type="button">Commencer</button></div>
+  </section>
+
+  <section class="ecran" id="decompte" hidden><div class="compte" id="compte"></div></section>
+
+  <section class="ecran" id="jeu" hidden>
+    <div class="info"><span id="etape">1 / 20</span><span id="chrono">0,0 s</span></div>
+    <div class="progression"><i id="barre"></i></div>
+    <div class="zone-calcul" id="zone">
+      <div class="calcul" id="calcul" aria-live="polite"></div>
+      <div class="saisie" id="saisie" aria-label="Ta réponse"></div>
+    </div>
+    <div class="pave" id="pave">
+      <button type="button" data-t="1">1</button><button type="button" data-t="2">2</button><button type="button" data-t="3">3</button>
+      <button type="button" data-t="4">4</button><button type="button" data-t="5">5</button><button type="button" data-t="6">6</button>
+      <button type="button" data-t="7">7</button><button type="button" data-t="8">8</button><button type="button" data-t="9">9</button>
+      <button type="button" data-t="effacer" aria-label="Effacer">⌫</button><button type="button" data-t="0">0</button><button type="button" class="ok" data-t="ok">OK</button>
+    </div>
+  </section>
+
+  <section class="ecran" id="resultat" hidden>
+    <h2 id="titre-resultat">Terminé !</h2>
+    <div class="score" id="score"></div>
+    <div><span class="record" id="badge-record" hidden>Nouveau record</span></div>
+    <p class="detail" id="detail"></p>
+    <div class="actions">
+      <button class="btn principal" id="b-rejouer" type="button">Rejouer</button>
+      <a class="btn" href="../../" style="text-align:center;text-decoration:none">Autres exercices</a>
+    </div>
+  </section>
+</div>
+
+<script src="../../commun/commun.js"></script>
+<script src="logique.js"></script>
+<script>
+const SLUG = "calcul-eclair";
+const NB = 20;
+const M = Meninges;
+const $ = id => document.getElementById(id);
+const reduit = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+let calculs = [], index = 0, saisie = "", erreurs = 0, debut = 0, enJeu = false, bloque = false, rafChrono = 0, minuteFlash = 0;
+
+function afficherRecord() {
+  const r = M.meilleur(SLUG);
+  $("record-intro").textContent = r === null ? "Pas encore de record." : "Ton record : " + M.formatScore(SLUG, r);
+}
+
+function commencer() {
+  enJeu = false;
+  M.montrer("decompte");
+  M.compteARebours($("compte"), demarrerJeu);
+}
+
+function demarrerJeu() {
+  calculs = CalculEclair.genererCalculs(NB);
+  index = 0; saisie = ""; erreurs = 0; bloque = false;
+  $("chrono").textContent = M.formatTemps(0) + " s";
+  $("zone").classList.remove("bon", "faux");
+  M.montrer("jeu");
+  afficherCalcul();
+  debut = M.maintenant();
+  enJeu = true;
+  tic();
+}
+
+function tic() {
+  if (!enJeu) return;
+  $("chrono").textContent = M.formatTemps(M.maintenant() - debut) + " s";
+  rafChrono = requestAnimationFrame(tic);
+}
+
+function afficherCalcul() {
+  $("etape").textContent = (index + 1) + " / " + NB;
+  $("barre").style.width = (index / NB * 100) + "%";
+  $("calcul").textContent = calculs[index].texte;
+  majSaisie();
+}
+
+function majSaisie() { $("saisie").textContent = saisie; }
+
+function flash(classe, duree) {
+  const z = $("zone");
+  clearTimeout(minuteFlash);
+  z.classList.remove("bon", "faux");
+  z.classList.add(classe);
+  minuteFlash = setTimeout(() => z.classList.remove(classe), duree);
+}
+
+function taper(t) {
+  if (!enJeu || bloque) return;
+  if (t === "effacer") { saisie = saisie.slice(0, -1); majSaisie(); return; }
+  if (t === "ok") { if (saisie) valider(); return; }
+  if (saisie.length >= 2) return;
+  saisie += t;
+  majSaisie();
+  if (saisie.length === String(calculs[index].reponse).length) valider();
+}
+
+function valider() {
+  const c = calculs[index];
+  if (Number(saisie) === c.reponse) {
+    M.vibrer(15);
+    index++;
+    if (index >= NB) { finir(); return; }
+    bloque = true;
+    flash("bon", reduit() ? 120 : 220);
+    // Courte pause pour voir la bonne réponse, puis calcul suivant
+    setTimeout(() => { bloque = false; saisie = ""; afficherCalcul(); }, reduit() ? 60 : 140);
+  } else {
+    erreurs++;
+    M.vibrer([30, 40, 30]);
+    flash("faux", 350);
+    bloque = true;
+    setTimeout(() => { bloque = false; saisie = ""; majSaisie(); }, 250);
+  }
+}
+
+function finir() {
+  enJeu = false;
+  cancelAnimationFrame(rafChrono);
+  const total = Math.round(M.maintenant() - debut);
+  $("chrono").textContent = M.formatTemps(total) + " s";
+  $("barre").style.width = "100%";
+  const moyenne = M.formatTemps(total / NB);
+  const txtErr = erreurs === 0 ? "Aucune erreur, bravo !" : erreurs === 1 ? "1 erreur." : erreurs + " erreurs.";
+  terminer(total, txtErr + " En moyenne " + moyenne + " s par calcul.");
+}
+
+function terminer(score, detail) {
+  const r = M.enregistrer(SLUG, score);
+  $("score").innerHTML = M.echap(M.formatScore(SLUG, score));
+  $("badge-record").hidden = !r.record;
+  $("titre-resultat").textContent = r.record ? "Plus rapide que jamais !" : "Terminé !";
+  $("detail").textContent = detail;
+  afficherRecord();
+  M.montrer("resultat");
+}
+
+$("pave").addEventListener("click", e => {
+  const b = e.target.closest("button[data-t]");
+  if (b) { taper(b.dataset.t); b.blur(); }
+});
+
+document.addEventListener("keydown", e => {
+  if (!enJeu || e.ctrlKey || e.metaKey || e.altKey) return;
+  if (/^[0-9]$/.test(e.key)) { e.preventDefault(); taper(e.key); }
+  else if (e.key === "Backspace" || e.key === "Delete") { e.preventDefault(); taper("effacer"); }
+  else if (e.key === "Enter") { e.preventDefault(); taper("ok"); }
+});
+
+$("b-commencer").onclick = commencer;
+$("b-rejouer").onclick = commencer;
+afficherRecord();
+</script>
+</body>
+</html>

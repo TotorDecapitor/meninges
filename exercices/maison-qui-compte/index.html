@@ -1,0 +1,431 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>La maison qui compte · Méninges</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Méninges">
+<link rel="apple-touch-icon" href="../../icones/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="../../icones/favicon-32.png">
+<link rel="manifest" href="../../manifest.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Inter:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="../../commun/style.css">
+<style>
+  :root {
+    --exo: #b8772a;
+    --ciel: #e3eef9; --herbe: #9fca7c; --mur: #f2dcb6; --mur-bord: #d9b98a; --toit-ombre: #8f5a1d;
+    --dedans: #fbefd9; --plancher: #d7b688; --porte: #8a5427; --vitre: #ffe39a; --contour: rgba(25, 20, 15, .55);
+  }
+  @media (prefers-color-scheme: dark) { :root {
+    --ciel: #1c2638; --herbe: #2f5236; --mur: #dcc196; --mur-bord: #b8996a; --toit-ombre: #7a4c18;
+    --dedans: #4a3a2b; --plancher: #33281d; --porte: #6c401c; --vitre: #f3c75a; --contour: rgba(255, 255, 255, .7);
+  } }
+
+  #jeu { justify-content: flex-start; gap: 10px; }
+  .scene {
+    position: relative; flex: 1 1 auto; min-height: 120px; max-height: 340px; overflow: hidden;
+    background: var(--ciel); border: 1px solid var(--line); border-radius: 16px;
+    touch-action: manipulation; user-select: none; -webkit-user-select: none;
+  }
+  .scene .sol { position: absolute; left: 0; right: 0; bottom: 0; height: 14px; background: var(--herbe); z-index: 5; }
+  .toit { position: absolute; z-index: 3; background: var(--exo); clip-path: polygon(50% 0, 100% 100%, 0 100%); }
+  .toit::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 6px; background: var(--toit-ombre); }
+  .interieur { position: absolute; z-index: 1; background: var(--dedans); box-shadow: inset 0 -10px 0 var(--plancher), inset 0 0 0 2px var(--mur-bord); }
+  .facade {
+    position: absolute; z-index: 3; background: var(--mur); transform-origin: top center;
+    box-shadow: inset 0 0 0 2px var(--mur-bord);
+    background-image: repeating-linear-gradient(0deg, transparent 0 13px, rgba(0,0,0,.05) 13px 14px);
+  }
+  .porte { position: absolute; bottom: 0; background: var(--porte); border-radius: 12px 12px 0 0; }
+  .porte::after { content: ""; position: absolute; top: 52%; width: 5px; height: 5px; border-radius: 50%; background: var(--vitre); }
+  .porte.g::after { right: 5px; } .porte.d::after { left: 5px; }
+  .fenetre {
+    position: absolute; left: 50%; transform: translateX(-50%); background: var(--vitre); border: 3px solid var(--porte); border-radius: 6px;
+    background-image: linear-gradient(var(--porte), var(--porte)), linear-gradient(var(--porte), var(--porte));
+    background-size: 3px 100%, 100% 3px; background-position: center; background-repeat: no-repeat;
+  }
+  .perso { position: absolute; left: 0; bottom: 14px; z-index: 4; opacity: 0; pointer-events: none; transform-origin: bottom center; }
+  .perso.dedans { z-index: 2; }
+  .perso svg { display: block; width: 100%; height: 100%; overflow: visible; }
+  .perso.marche svg { animation: pas .34s ease-in-out infinite alternate; }
+  @keyframes pas { to { transform: translateY(-2px); } }
+
+  .question { display: flex; align-items: center; gap: 12px; min-height: 52px; }
+  .ecran p.consigne { flex: 1; color: var(--ink); font-weight: 600; line-height: 1.3; }
+  .consigne.bon { color: var(--bon) !important; } .consigne.faux { color: var(--faux) !important; }
+  .saisie {
+    flex: 0 0 auto; min-width: 66px; height: 50px; padding: 0 10px; border-radius: 12px; display: grid; place-items: center;
+    background: var(--surface); border: 2px solid var(--line); font: 800 1.8rem var(--f-display); font-variant-numeric: tabular-nums;
+  }
+  .saisie.vide { color: var(--muted); }
+  .saisie.active { border-color: var(--exo); }
+  .saisie.bon { background: var(--bon); border-color: var(--bon); color: var(--on-color); }
+  .saisie.faux { background: var(--faux); border-color: var(--faux); color: var(--on-color); }
+  #pave button { height: 50px; min-height: 44px; }
+  #pave button:disabled { opacity: .45; cursor: default; }
+  .intro-maison { width: 120px; height: auto; align-self: center; }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="barre">
+    <a class="retour" href="../../">← Méninges</a>
+    <h1><span>La maison qui compte</span></h1>
+  </div>
+
+  <!-- 1. Intro -->
+  <section class="ecran" id="intro">
+    <svg class="intro-maison" viewBox="0 0 120 96" aria-hidden="true">
+      <polygon points="60,4 116,44 4,44" fill="#b8772a"/>
+      <rect x="16" y="42" width="88" height="50" fill="#f2dcb6" stroke="#d9b98a" stroke-width="2"/>
+      <rect x="24" y="58" width="16" height="34" rx="6" fill="#8a5427"/>
+      <rect x="80" y="58" width="16" height="34" rx="6" fill="#8a5427"/>
+      <rect x="50" y="52" width="20" height="18" rx="3" fill="#ffe39a" stroke="#8a5427" stroke-width="3"/>
+    </svg>
+    <h2>La maison qui compte</h2>
+    <p>Des personnes entrent dans la maison par la gauche et sortent par la droite. Compte-les bien : à la fin, dis combien il en reste à l'intérieur !</p>
+    <p>5 manches, de plus en plus rapides.</p>
+    <p id="record-intro"></p>
+    <div class="actions"><button class="btn principal" id="b-commencer" type="button">Commencer</button></div>
+  </section>
+
+  <!-- 2. Compte à rebours -->
+  <section class="ecran" id="decompte" hidden><div class="compte" id="compte"></div></section>
+
+  <!-- 3. Jeu -->
+  <section class="ecran" id="jeu" hidden>
+    <div class="info"><span id="etape">Manche 1 / 5</span><span id="reussies">Réussies : 0</span></div>
+    <div class="progression"><i id="barre"></i></div>
+    <div class="scene" id="scene" aria-hidden="true">
+      <div class="interieur" id="interieur"></div>
+      <div class="facade" id="facade">
+        <div class="porte g" id="porte-g"></div>
+        <div class="fenetre" id="fenetre"></div>
+        <div class="porte d" id="porte-d"></div>
+      </div>
+      <div class="toit" id="toit"></div>
+      <div class="sol"></div>
+    </div>
+    <div class="question">
+      <p class="consigne" id="consigne" aria-live="polite"></p>
+      <div class="saisie vide" id="saisie" aria-live="polite">?</div>
+    </div>
+    <div class="pave" id="pave">
+      <button type="button" data-t="1">1</button><button type="button" data-t="2">2</button><button type="button" data-t="3">3</button>
+      <button type="button" data-t="4">4</button><button type="button" data-t="5">5</button><button type="button" data-t="6">6</button>
+      <button type="button" data-t="7">7</button><button type="button" data-t="8">8</button><button type="button" data-t="9">9</button>
+      <button type="button" data-t="eff" aria-label="Effacer">⌫</button><button type="button" data-t="0">0</button>
+      <button type="button" data-t="ok" class="ok">Valider</button>
+    </div>
+  </section>
+
+  <!-- 4. Résultat -->
+  <section class="ecran" id="resultat" hidden>
+    <h2 id="titre-resultat">Terminé !</h2>
+    <div class="score" id="score"></div>
+    <div><span class="record" id="badge-record" hidden>Nouveau record</span></div>
+    <p class="detail" id="detail"></p>
+    <div class="actions">
+      <button class="btn principal" id="b-rejouer" type="button">Rejouer</button>
+      <a class="btn" href="../../" style="text-align:center;text-decoration:none">Autres exercices</a>
+    </div>
+  </section>
+</div>
+
+<script src="../../commun/commun.js"></script>
+<script src="logique.js"></script>
+<script>
+const SLUG = "maison-qui-compte";
+const M = Meninges, L = MaisonLogique;
+const $ = id => document.getElementById(id);
+const scene = $("scene"), facade = $("facade"), consigne = $("consigne"), saisieEl = $("saisie"), pave = $("pave");
+const reduit = window.matchMedia("(prefers-reduced-motion: reduce)");
+const SOL = 14;
+
+const CHEMISES = ["#e0533d", "#2f7fd1", "#3aa35b", "#e9a11b", "#8b5cc9", "#16a3a3", "#d94f8c"];
+const PANTALONS = ["#2f3d5c", "#5a4632", "#3b4a3a", "#4b3f63"];
+const PEAUX = ["#f3cfa6", "#dca679", "#b07247", "#7a4b2c"];
+const CHEVEUX = ["#2b2118", "#5b3a1e", "#a0652b", "#1c1c1c", "#bdb6ad"];
+
+let partie = 0;          // jeton : une nouvelle partie invalide les animations de l'ancienne
+let etat = "repos";      // "anim" | "question" | "retour"
+let saisie = "";
+let geo = null, numero = 0, manche = null, reussies = 0, rates = [];
+let couleurs = [];
+
+const attendre = ms => new Promise(r => setTimeout(r, ms));
+
+function afficherRecord() {
+  const r = M.meilleur(SLUG);
+  $("record-intro").textContent = r === null ? "Pas encore de record." : "Ton record : " + M.formatScore(SLUG, r);
+}
+
+// ---------- Géométrie de la scène (recalculée à chaque manche et au redimensionnement) ----------
+function px(el, o) { for (const k in o) el.style[k] = Math.round(o[k]) + "px"; }
+function mesurer() {
+  const W = scene.clientWidth, H = scene.clientHeight;
+  const hw = Math.min(W * 0.52, 230), hx = (W - hw) / 2;
+  const hh = Math.min(H - 18, 220);
+  const toitH = Math.round(hh * 0.36), mursH = hh - toitH;
+  const ph = Math.round(Math.min(54, mursH * 0.6)), pw = Math.round(ph * 0.52);
+  const dw = Math.round(pw * 1.35), dh = Math.min(ph + 6, mursH - 8);
+  const porteG = hx + hw * 0.08, porteD = hx + hw * 0.92 - dw;
+  geo = { W, H, hw, hx, mursH, ph, pw, dw, porteG, porteD };
+  px($("toit"), { left: hx - hw * 0.07, width: hw * 1.14, bottom: SOL + mursH - 2, height: toitH });
+  px($("interieur"), { left: hx, width: hw, bottom: SOL, height: mursH });
+  px(facade, { left: hx, width: hw, bottom: SOL, height: mursH });
+  px($("porte-g"), { left: porteG - hx, width: dw, height: dh });
+  px($("porte-d"), { left: porteD - hx, width: dw, height: dh });
+  const f = Math.min(hw * 0.2, mursH * 0.3);
+  px($("fenetre"), { top: mursH * 0.18, width: f, height: f });
+}
+
+// ---------- Personnages ----------
+function couleurSuivante() {
+  if (!couleurs.length) couleurs = M.melanger(CHEMISES);
+  return couleurs.pop();
+}
+function creerPersonne(k) {
+  const el = document.createElement("div");
+  el.className = "perso";
+  k = k || 0.9 + Math.random() * 0.18;
+  el.style.width = (geo.pw * k).toFixed(1) + "px";
+  el.style.height = (geo.ph * k).toFixed(1) + "px";
+  const peau = PEAUX[M.aleatoire(0, PEAUX.length - 1)], cheveux = CHEVEUX[M.aleatoire(0, CHEVEUX.length - 1)];
+  const pant = PANTALONS[M.aleatoire(0, PANTALONS.length - 1)];
+  el.innerHTML =
+    `<svg viewBox="0 0 26 50"><g stroke="var(--contour)" stroke-width="1.2">` +
+    `<rect x="7" y="32" width="5" height="17" rx="2.5" fill="${pant}"/><rect x="14" y="32" width="5" height="17" rx="2.5" fill="${pant}"/>` +
+    `<rect x="4.5" y="15" width="17" height="21" rx="6.5" fill="${couleurSuivante()}"/>` +
+    `<circle cx="13" cy="8.5" r="6.8" fill="${peau}"/></g>` +
+    `<path d="M6.2 8.3a6.8 6.8 0 0 1 13.6 0q-3.4-2.6-6.8-2.2-3.4-.4-6.8 2.2z" fill="${cheveux}"/></svg>`;
+  scene.appendChild(el);
+  return el;
+}
+const tx = x => `translateX(${x.toFixed(1)}px)`;
+
+// Fait marcher une personne de x=de à x=a. En mouvement réduit : 3 positions nettes, sans glissement, même durée.
+function marcher(el, { de, a, duree, delai = 0, apparait = false, disparait = false }) {
+  el.classList.add("marche");
+  const larg = parseFloat(el.style.width);
+  let kf;
+  if (!reduit.matches) {
+    kf = [{ transform: tx(de), opacity: apparait ? 0 : 1, offset: 0 }];
+    if (apparait) kf.push({ transform: tx(de + (a - de) * 0.1), opacity: 1, offset: 0.1 });
+    if (disparait) kf.push({ transform: tx(de + (a - de) * 0.88), opacity: 1, offset: 0.88 });
+    kf.push({ transform: tx(a), opacity: disparait ? 0 : 1, offset: 1 });
+  } else {
+    const mini = 4, maxi = geo.W - larg - 4, c = x => Math.max(mini, Math.min(maxi, x));
+    const p0 = c(de), p2 = c(a), p1 = (p0 + p2) / 2;
+    const cache = disparait || a > maxi || a < mini;
+    kf = [
+      { transform: tx(p0), opacity: 1, offset: 0 }, { transform: tx(p0), opacity: 1, offset: 0.3 },
+      { transform: tx(p1), opacity: 1, offset: 0.3 }, { transform: tx(p1), opacity: 1, offset: 0.6 },
+      { transform: tx(p2), opacity: 1, offset: 0.6 }
+    ].concat(cache
+      ? [{ transform: tx(p2), opacity: 1, offset: 0.9 }, { transform: tx(p2), opacity: 0, offset: 0.9 }, { transform: tx(p2), opacity: 0, offset: 1 }]
+      : [{ transform: tx(p2), opacity: 1, offset: 1 }]);
+  }
+  const anim = el.animate(kf, { duration: duree, delay: delai, fill: "forwards", easing: "linear" });
+  return anim.finished.then(() => el.classList.remove("marche"), () => {});
+}
+
+// Ferme (volet qui descend) ou ouvre la façade
+async function volet(ferme, duree = 650) {
+  const de = ferme ? "scaleY(0)" : "scaleY(1)", a = ferme ? "scaleY(1)" : "scaleY(0)";
+  const kf = reduit.matches
+    ? [{ transform: de, offset: 0 }, { transform: de, offset: 0.5 }, { transform: a, offset: 0.5 }, { transform: a, offset: 1 }]
+    : [{ transform: de }, { transform: a }];
+  const anim = facade.animate(kf, { duration: duree, easing: "ease-in-out", fill: "forwards" });
+  await anim.finished.catch(() => {});
+  facade.style.transform = a;
+  anim.cancel();
+}
+
+function viderDedans() { scene.querySelectorAll(".perso").forEach(p => p.remove()); }
+
+// Place n personnes immobiles à l'intérieur (révélation de la bonne réponse)
+function montrerDedans(n) {
+  const avant = n > 4 ? Math.ceil(n / 2) : n, arriere = n - avant;
+  const rang = (nb, k, dy) => {
+    for (let i = 0; i < nb; i++) {
+      const el = creerPersonne(k);
+      el.classList.add("dedans");
+      const x = geo.hx + geo.hw * (i + 1) / (nb + 1) - geo.pw * k / 2;
+      el.style.bottom = (SOL + dy) + "px";
+      el.style.transform = tx(x);
+      el.style.opacity = 1;
+    }
+  };
+  rang(arriere, 0.8, Math.round(geo.mursH * 0.36));
+  rang(avant, 1, 0);
+}
+
+// ---------- Déroulement ----------
+function commencer() {
+  partie++;
+  M.montrer("decompte");
+  M.compteARebours($("compte"), demarrerJeu);
+}
+
+function demarrerJeu() {
+  M.montrer("jeu");
+  numero = 0; reussies = 0; rates = [];
+  viderDedans();
+  facade.getAnimations().forEach(a => a.cancel());
+  facade.style.transform = "scaleY(0)";
+  mancheSuivante(partie);
+}
+
+function majInfo() {
+  $("etape").textContent = "Manche " + Math.min(numero + 1, 5) + " / 5";
+  $("reussies").textContent = "Réussies : " + reussies;
+  $("barre").style.width = (numero / 5 * 100) + "%";
+}
+
+function activerPave(oui) { pave.querySelectorAll("button").forEach(b => { b.disabled = !oui; }); }
+function majSaisie(classe) {
+  saisieEl.textContent = saisie === "" ? "?" : saisie;
+  saisieEl.className = "saisie" + (saisie === "" ? " vide" : "") + (classe ? " " + classe : "");
+}
+function dire(texte, classe) { consigne.textContent = texte; consigne.className = "consigne" + (classe ? " " + classe : ""); }
+
+async function mancheSuivante(jeton) {
+  if (jeton !== partie) return;
+  if (numero >= 5) return finir();
+  const cfg = L.MANCHES[numero];
+  manche = L.genererManche(cfg);
+  majInfo();
+  etat = "anim"; saisie = ""; majSaisie(); activerPave(false);
+  mesurer();
+
+  // On vide la maison (ouverte) de la manche précédente
+  if (scene.querySelector(".perso")) { await attendre(250); viderDedans(); }
+  if (facade.style.transform !== "scaleY(0)") await volet(false, 400);
+
+  // 1. Au départ : on voit entrer les premiers occupants
+  const n0 = manche.depart;
+  dire(n0 === 0 ? "Au départ, la maison est vide." : "Manche " + (numero + 1) + " : regarde qui entre…");
+  await attendre(600);
+  if (jeton !== partie) return;
+  const proms = [];
+  for (let i = 0; i < n0; i++) {
+    const el = creerPersonne();
+    el.classList.add("dedans");
+    const slot = geo.hx + geo.hw * (n0 - i) / (n0 + 1) - parseFloat(el.style.width) / 2;
+    proms.push(marcher(el, { de: -geo.pw - 8, a: slot, duree: 1500, delai: i * 420 }));
+  }
+  await Promise.all(proms);
+  await attendre(n0 === 0 ? 900 : 700);
+  if (jeton !== partie) return;
+
+  // 2. On ferme la maison
+  dire("On ferme la maison !");
+  await volet(true);
+  if (jeton !== partie) return;
+  viderDedans();
+  dire(cfg.simul > 0 ? "Compte bien… ça entre et sort en même temps !" : "Compte bien…");
+  await attendre(700);
+
+  // 3. Les mouvements
+  for (const mv of manche.mouvements) {
+    if (jeton !== partie) return;
+    await jouerMouvement(mv, cfg);
+    await attendre(cfg.pause);
+  }
+  if (jeton !== partie) return;
+
+  // 4. La question
+  etat = "question";
+  dire("Combien de personnes sont dans la maison ?");
+  majSaisie("active"); activerPave(true);
+}
+
+function jouerMouvement(mv, cfg) {
+  const ecart = Math.max(200, cfg.duree * 0.32);
+  const proms = [];
+  const centreG = geo.porteG + geo.dw / 2, centreD = geo.porteD + geo.dw / 2;
+  for (let i = 0; i < mv.entrees; i++) {
+    const el = creerPersonne(), l = parseFloat(el.style.width);
+    proms.push(marcher(el, { de: -l - 8, a: centreG - l / 2, duree: cfg.duree, delai: i * ecart, disparait: true }).then(() => el.remove()));
+  }
+  for (let i = 0; i < mv.sorties; i++) {
+    const el = creerPersonne(), l = parseFloat(el.style.width);
+    proms.push(marcher(el, { de: centreD - l / 2, a: geo.W + 8, duree: cfg.duree, delai: i * ecart, apparait: true }).then(() => el.remove()));
+  }
+  return Promise.all(proms);
+}
+
+function taper(t) {
+  if (etat !== "question") return;
+  if (t === "ok") return valider();
+  if (t === "eff") saisie = saisie.slice(0, -1);
+  else if (saisie.length < 2) saisie = (saisie === "0" ? "" : saisie) + t;
+  majSaisie("active");
+}
+
+async function valider() {
+  if (saisie === "") {
+    saisieEl.classList.remove("flash-faux"); void saisieEl.offsetWidth; saisieEl.classList.add("flash-faux");
+    return;
+  }
+  const jeton = partie;
+  etat = "retour"; activerPave(false);
+  const donne = parseInt(saisie, 10), bon = manche.final;
+  const ok = donne === bon;
+  if (ok) {
+    reussies++;
+    majSaisie("bon");
+    dire(bon === 0 ? "Bravo, la maison est bien vide !" : "Bravo, il y en a bien " + bon + " !", "bon");
+    M.vibrer(30);
+  } else {
+    rates.push({ manche: numero + 1, bon, donne });
+    majSaisie("faux");
+    dire(bon === 0 ? "Raté : la maison était vide." : "Raté : il y en avait " + bon + ".", "faux");
+    M.vibrer([60, 40, 60]);
+  }
+  numero++;
+  majInfo();
+  if (numero >= 5) $("etape").textContent = "Manche 5 / 5";
+  // On ouvre la maison pour montrer qui est dedans
+  montrerDedans(bon);
+  await volet(false, 500);
+  await attendre(ok ? 1700 : 2500);
+  mancheSuivante(jeton);
+}
+
+function finir() {
+  etat = "repos";
+  const r = M.enregistrer(SLUG, reussies);
+  $("score").innerHTML = M.echap(M.formatScore(SLUG, reussies));
+  $("badge-record").hidden = !r.record;
+  $("titre-resultat").textContent = reussies === 5 ? "Sans faute !" : reussies >= 3 ? "Bien compté !" : "Terminé !";
+  let detail = reussies === 5 ? "Sans faute : 5 manches réussies sur 5 !"
+    : reussies + (reussies > 1 ? " manches réussies" : " manche réussie") + " sur 5.";
+  for (const x of rates) detail += " Manche " + x.manche + " : il y en avait " + x.bon + ", tu as dit " + x.donne + ".";
+  $("detail").textContent = detail;
+  viderDedans();
+  afficherRecord();
+  M.montrer("resultat");
+}
+
+// ---------- Entrées ----------
+pave.addEventListener("click", e => { const b = e.target.closest("button"); if (b && !b.disabled) taper(b.dataset.t); });
+document.addEventListener("keydown", e => {
+  if (etat !== "question" || e.ctrlKey || e.metaKey || e.altKey) return;
+  if (/^[0-9]$/.test(e.key)) { taper(e.key); e.preventDefault(); }
+  else if (e.key === "Backspace" || e.key === "Delete") { taper("eff"); e.preventDefault(); }
+  else if (e.key === "Enter") { taper("ok"); e.preventDefault(); }
+});
+window.addEventListener("resize", () => { if (!$("jeu").hidden && etat !== "anim") mesurer(); });
+
+$("b-commencer").onclick = commencer;
+$("b-rejouer").onclick = commencer;
+afficherRecord();
+</script>
+</body>
+</html>

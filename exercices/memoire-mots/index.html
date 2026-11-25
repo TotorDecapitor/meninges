@@ -1,0 +1,287 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Mémoire de mots · Méninges</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Méninges">
+<link rel="apple-touch-icon" href="../../icones/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="../../icones/favicon-32.png">
+<link rel="manifest" href="../../manifest.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Inter:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="../../commun/style.css">
+<style>
+  :root { --exo: #7a4fb8; --exo-texte: #7a4fb8; }
+  @media (prefers-color-scheme: dark) { :root { --exo-texte: #b99af0; } }
+  .score, .compte { color: var(--exo-texte); }
+
+  /* Les écrans de jeu partent du haut (le clavier iPhone ne doit pas cacher le champ) */
+  #memo, #rappel, #resultat { justify-content: flex-start; gap: 12px; }
+  #resultat { padding-bottom: 8px; }
+
+  .info .alerte { color: var(--faux); }
+
+  /* Grille des 24 mots */
+  .grille { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; list-style: none; margin: 0; padding: 0; }
+  @media (min-width: 480px) { .grille { grid-template-columns: repeat(4, 1fr); gap: 8px; } }
+  .grille li {
+    min-height: 44px; display: flex; align-items: center; justify-content: center; text-align: center;
+    background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 4px 4px;
+    font: 600 1.05rem/1.15 var(--f-display); overflow-wrap: anywhere;
+  }
+  @media (max-height: 600px) { .grille li { min-height: 38px; } }
+
+  /* Rappel */
+  .saisie { display: flex; gap: 8px; }
+  .saisie input {
+    flex: 1; min-width: 0; font: 500 1.1rem var(--f-body); /* ≥ 16 px : pas de zoom Safari */
+    padding: 12px 14px; min-height: 50px; border-radius: 12px; border: 1px solid var(--line);
+    background: var(--surface); color: var(--ink); scroll-margin-top: 80px;
+  }
+  .saisie input:focus { outline: 2px solid var(--exo); outline-offset: 0; border-color: var(--exo); }
+  .saisie .btn { padding: 12px 16px; min-height: 50px; }
+  .message { min-height: 1.5em; margin: 0; font-weight: 600; font-size: .95rem; color: var(--muted); }
+  .message .faux { color: var(--faux); }
+  .message .bon { color: var(--bon); }
+  .barre h1 span { color: var(--exo-texte); }
+  .petit { padding: 8px 14px; min-height: 44px; font-size: .9rem; }
+  .entete-rappel { display: flex; align-items: center; justify-content: space-between; gap: 10px; color: var(--muted); font-weight: 600; font-size: .9rem; font-variant-numeric: tabular-nums; }
+  .entete-rappel .compteur { color: var(--ink); }
+
+  .trouves { display: flex; flex-wrap: wrap; gap: 6px; list-style: none; margin: 0; padding: 0; }
+  .trouves li {
+    padding: 6px 12px; border-radius: 99px; font-weight: 600;
+    background: var(--surface); border: 1px solid var(--bon); color: var(--ink);
+  }
+  .trouves li.neuf { animation: apparait .3s ease-out; }
+  .trouves li.rappel { animation: flashbon .5s; }
+  .trouves li.vide { color: var(--muted); font-style: italic; font-weight: 500; border: 0; background: none; padding: 6px 0; }
+  @keyframes apparait { from { transform: scale(.7); opacity: 0; } }
+
+  /* Résultat : retrouvés / oubliés */
+  .grille.bilan li.oui { background: var(--bon); border-color: var(--bon); color: var(--on-color); }
+  .grille.bilan li.oui::before { content: "✓\00a0"; }
+  .grille.bilan li.non { background: transparent; border-style: dashed; color: var(--muted); font-weight: 600; }
+  .legende { display: flex; gap: 14px; font-size: .85rem; color: var(--muted); align-items: center; flex-wrap: wrap; }
+  .legende i { display: inline-block; width: 14px; height: 14px; border-radius: 4px; vertical-align: -2px; margin-right: 5px; }
+  .legende .l-oui { background: var(--bon); }
+  .legende .l-non { border: 1px dashed var(--muted); }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="barre">
+    <a class="retour" href="../../">← Méninges</a>
+    <h1><span>Mémoire de mots</span></h1>
+  </div>
+
+  <!-- 1. Intro -->
+  <section class="ecran" id="intro">
+    <h2>Mémoire de mots</h2>
+    <p>Tu as 2 minutes pour retenir 24 mots. Ensuite ils disparaissent, et tu as 3 minutes pour écrire tous ceux dont tu te souviens.</p>
+    <p>Les accents, les majuscules et les pluriels ne comptent pas.</p>
+    <p id="record-intro"></p>
+    <div class="actions"><button class="btn principal" id="b-commencer" type="button">Commencer</button></div>
+  </section>
+
+  <!-- 2. Compte à rebours -->
+  <section class="ecran" id="decompte" hidden><div class="compte" id="compte"></div></section>
+
+  <!-- 3a. Mémorisation -->
+  <section class="ecran" id="memo" hidden>
+    <div class="info"><span>Retiens ces 24 mots</span><span id="chrono-memo">2:00</span></div>
+    <div class="progression"><i id="barre-memo"></i></div>
+    <ul class="grille" id="grille" aria-label="Mots à retenir"></ul>
+    <div class="actions"><button class="btn principal" id="b-fini-memo" type="button">J'ai fini</button></div>
+  </section>
+
+  <!-- 3b. Rappel : champ en haut pour rester visible au-dessus du clavier -->
+  <section class="ecran" id="rappel" hidden>
+    <div class="entete-rappel">
+      <span><span id="chrono-rappel">3:00</span> · <span class="compteur" id="compteur">0 / 24</span></span>
+      <button class="btn petit" id="b-fini-rappel" type="button">J'ai fini</button>
+    </div>
+    <div class="progression"><i id="barre-rappel"></i></div>
+    <form class="saisie" id="form" autocomplete="off">
+      <input id="champ" type="text" autofocus aria-label="Un mot dont tu te souviens" placeholder="Écris un mot…"
+             autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" enterkeyhint="send" maxlength="60">
+      <button class="btn principal" id="b-ajouter" type="submit">Ajouter</button>
+    </form>
+    <p class="message" id="message" aria-live="polite"></p>
+    <ul class="trouves" id="trouves" aria-label="Mots retrouvés"></ul>
+  </section>
+
+  <!-- 4. Résultat -->
+  <section class="ecran" id="resultat" hidden>
+    <h2 id="titre-resultat">Terminé !</h2>
+    <div class="score" id="score"></div>
+    <div><span class="record" id="badge-record" hidden>Nouveau record</span></div>
+    <p class="detail" id="detail"></p>
+    <div class="legende"><span><i class="l-oui"></i>retrouvé</span><span><i class="l-non"></i>oublié</span></div>
+    <ul class="grille bilan" id="bilan" aria-label="Les 24 mots"></ul>
+    <div class="actions">
+      <button class="btn principal" id="b-rejouer" type="button">Rejouer</button>
+      <a class="btn" href="../../" style="text-align:center;text-decoration:none">Autres exercices</a>
+    </div>
+  </section>
+</div>
+
+<script src="../../commun/commun.js"></script>
+<script src="mots.js"></script>
+<script src="logique.js"></script>
+<script>
+const SLUG = "memoire-mots";
+const M = Meninges, L = MemoireMots;
+const NB_MOTS = 24, DUREE_MEMO = 120000, DUREE_RAPPEL = 180000;
+const $ = id => document.getElementById(id);
+
+let mots = [], index = null, trouves = new Set(), ordreTrouves = [], intrus = new Set();
+let arreterMinuteur = null, debutRappel = 0, tempsMemo = 0, debutMemo = 0, timerMessage = null, finie = false;
+
+const pluriel = n => n + (n > 1 ? " mots" : " mot");
+const mmss = ms => { const s = Math.ceil(ms / 1000); return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0"); };
+
+function afficherRecord() {
+  const r = M.meilleur(SLUG);
+  $("record-intro").textContent = r === null ? "Pas encore de record." : "Ton record : " + pluriel(r) + " sur " + NB_MOTS + ".";
+}
+
+// Minuteur : appelle tic(reste) régulièrement, puis fin(). Renvoie une fonction d'arrêt.
+function minuteur(duree, tic, fin) {
+  const debut = M.maintenant();
+  tic(duree);
+  const id = setInterval(() => {
+    const reste = duree - (M.maintenant() - debut);
+    if (reste <= 0) { clearInterval(id); tic(0); fin(); } else tic(reste);
+  }, 200);
+  return () => clearInterval(id);
+}
+function stopMinuteur() { if (arreterMinuteur) { arreterMinuteur(); arreterMinuteur = null; } }
+
+function afficherTemps(elChrono, elBarre, reste, duree) {
+  elChrono.textContent = mmss(reste);
+  elChrono.classList.toggle("alerte", reste <= 10000);
+  elBarre.style.width = (100 * reste / duree) + "%";
+}
+
+function commencer() {
+  stopMinuteur();
+  mots = L.tirerMots(MOTS_MEMOIRE, NB_MOTS, M.melanger);
+  index = L.creerIndex(mots);
+  trouves = new Set(); ordreTrouves = []; intrus = new Set(); finie = false;
+  $("grille").innerHTML = mots.map(m => "<li>" + M.echap(m) + "</li>").join("");
+  M.montrer("decompte");
+  M.compteARebours($("compte"), demarrerMemo);
+}
+
+function demarrerMemo() {
+  M.montrer("memo");
+  debutMemo = M.maintenant();
+  arreterMinuteur = minuteur(DUREE_MEMO, r => afficherTemps($("chrono-memo"), $("barre-memo"), r, DUREE_MEMO), demarrerRappel);
+}
+
+function demarrerRappel() {
+  stopMinuteur();
+  tempsMemo = Math.min(M.maintenant() - debutMemo, DUREE_MEMO);
+  $("grille").innerHTML = "";
+  $("champ").value = "";
+  $("message").textContent = ""; $("message").className = "message";
+  majTrouves(null);
+  M.montrer("rappel");
+  $("champ").focus();
+  debutRappel = M.maintenant();
+  arreterMinuteur = minuteur(DUREE_RAPPEL, r => afficherTemps($("chrono-rappel"), $("barre-rappel"), r, DUREE_RAPPEL), terminer);
+}
+
+function majTrouves(neufs, rappels) {
+  $("compteur").textContent = trouves.size + " / " + NB_MOTS;
+  const ul = $("trouves");
+  if (!ordreTrouves.length) { ul.innerHTML = '<li class="vide">Tes mots retrouvés s\'afficheront ici.</li>'; return; }
+  // Les plus récents en premier, pour qu'ils restent visibles au-dessus du clavier
+  ul.innerHTML = [...ordreTrouves].reverse().map(m => {
+    const cls = neufs && neufs.includes(m) ? "neuf" : rappels && rappels.includes(m) ? "rappel" : "";
+    return '<li class="' + cls + '">' + M.echap(m) + "</li>";
+  }).join("");
+}
+
+// morceaux : [[texte, genre]] avec genre "bon", "faux" ou "" ; effacé après quelques secondes
+function message(morceaux) {
+  const el = $("message");
+  el.innerHTML = morceaux.map(([t, g]) => '<span class="' + g + '">' + M.echap(t) + "</span>").join(" ");
+  clearTimeout(timerMessage);
+  timerMessage = setTimeout(() => { el.textContent = ""; }, 3000);
+}
+
+function ajouter(e) {
+  e.preventDefault();
+  if (finie) return;
+  const champ = $("champ");
+  const r = L.analyser(champ.value, index, trouves);
+  champ.value = "";
+  champ.focus();
+  if (!r.nouveaux.length && !r.doublons.length && !r.intrus.length) return;
+  r.nouveaux.forEach(m => { trouves.add(m); ordreTrouves.push(m); });
+  r.intrus.forEach(t => intrus.add(t));
+  majTrouves(r.nouveaux, r.doublons);
+
+  const morceaux = [];
+  if (r.nouveaux.length) morceaux.push(["Bien vu : " + r.nouveaux.join(", ") + " !", "bon"]);
+  if (r.doublons.length) morceaux.push([r.doublons.length > 1 ? r.doublons.join(", ") + " : déjà notés." : "« " + r.doublons[0] + " » : déjà noté.", ""]);
+  if (r.intrus.length) morceaux.push([r.intrus.length > 1 ? "« " + r.intrus.join(" », « ") + " » n'étaient pas dans la liste." : "« " + r.intrus[0] + " » n'était pas dans la liste.", "faux"]);
+  message(morceaux);
+
+  const form = $("form");
+  if (r.nouveaux.length) { M.vibrer(15); form.classList.remove("flash-bon"); void form.offsetWidth; form.classList.add("flash-bon"); }
+  else if (r.intrus.length) { M.vibrer([20, 40, 20]); form.classList.remove("flash-faux"); void form.offsetWidth; form.classList.add("flash-faux"); }
+
+  if (trouves.size === NB_MOTS) setTimeout(terminer, 600);
+}
+
+function terminer() {
+  if (finie) return;
+  finie = true;
+  stopMinuteur();
+  $("champ").blur();
+  const score = trouves.size;
+  const duree = Math.min(M.maintenant() - debutRappel, DUREE_RAPPEL);
+  const r = M.enregistrer(SLUG, score);
+
+  $("score").innerHTML = M.echap(String(score)) + "<small>" + (score > 1 ? "mots" : "mot") + " sur " + NB_MOTS + "</small>";
+  $("badge-record").hidden = !r.record;
+  $("titre-resultat").textContent = score === NB_MOTS ? "Sans faute !" : score >= 16 ? "Superbe mémoire !" : score >= 10 ? "Bien joué !" : "Terminé !";
+
+  const phrases = [];
+  phrases.push("Mémorisation en " + mmss(tempsMemo) + ", rappel en " + mmss(duree) + ".");
+  if (score === NB_MOTS) phrases.push("Tu as retrouvé tous les mots !");
+  else if (score === 0) phrases.push("Aucun mot retrouvé cette fois : essaie d'imaginer une petite histoire qui les relie.");
+  else phrases.push("Il t'en manquait " + (NB_MOTS - score) + ".");
+  if (intrus.size) phrases.push(intrus.size > 1 ? intrus.size + " mots proposés n'étaient pas dans la liste." : "1 mot proposé n'était pas dans la liste.");
+  if (!r.record && !r.premier && r.meilleur !== null) phrases.push("Ton record : " + pluriel(r.meilleur) + ".");
+  $("detail").textContent = phrases.join(" ");
+
+  $("bilan").innerHTML = mots.map(m => {
+    const ok = trouves.has(m);
+    return '<li class="' + (ok ? "oui" : "non") + '"><span class="sr" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">' +
+      (ok ? "retrouvé : " : "oublié : ") + "</span>" + M.echap(m) + "</li>";
+  }).join("");
+  afficherRecord();
+  M.montrer("resultat");
+  window.scrollTo(0, 0);
+}
+
+$("b-commencer").onclick = commencer;
+$("b-rejouer").onclick = commencer;
+$("b-fini-memo").onclick = demarrerRappel;
+$("b-fini-rappel").onclick = terminer;
+$("form").addEventListener("submit", ajouter);
+// Garder le clavier ouvert quand on touche « Ajouter » (le bouton ne prend pas le focus)
+$("b-ajouter").addEventListener("pointerdown", e => e.preventDefault());
+$("b-ajouter").addEventListener("mousedown", e => e.preventDefault());
+afficherRecord();
+</script>
+</body>
+</html>

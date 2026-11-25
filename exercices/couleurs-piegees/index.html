@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Couleurs piégées · Méninges</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Méninges">
+<link rel="apple-touch-icon" href="../../icones/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="../../icones/favicon-32.png">
+<link rel="manifest" href="../../manifest.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Inter:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="../../commun/style.css">
+<style>
+  :root {
+    --exo: #c8442f;
+    /* Encres du jeu (c'est le contenu). Rouge foncé / vert plus clair : se distinguent aussi par la luminosité. */
+    --encre-rouge: #b3241a;
+    --encre-bleu: #2456d6;
+    --encre-vert: #2c9a4b;
+    --encre-jaune: #e0a800;
+    --contour-jaune: #7a5900; /* fin contour pour lire le jaune sur fond clair */
+  }
+  @media (prefers-color-scheme: dark) { :root {
+    --encre-rouge: #ff5a4a;
+    --encre-bleu: #6f9bff;
+    --encre-vert: #5ad17a;
+    --encre-jaune: #ffd23f;
+    --contour-jaune: transparent;
+  } }
+
+  #jeu { justify-content: flex-start; }
+  #jeu .info b { color: var(--ink); }
+  .mot {
+    flex: 1; min-height: 140px; display: flex; align-items: center; justify-content: center;
+    background: var(--surface); border: 1px solid var(--line); border-radius: 20px;
+    font: 800 clamp(3.2rem, 17vw, 5.6rem) var(--f-display); letter-spacing: .02em;
+    user-select: none; -webkit-user-select: none;
+  }
+  .mot[data-encre="rouge"] { color: var(--encre-rouge); }
+  .mot[data-encre="bleu"]  { color: var(--encre-bleu); }
+  .mot[data-encre="vert"]  { color: var(--encre-vert); }
+  .mot[data-encre="jaune"] { color: var(--encre-jaune);
+    /* contour par ombres (le text-stroke fait apparaître les tracés internes de la police variable) */
+    text-shadow: 1px 0 var(--contour-jaune), -1px 0 var(--contour-jaune), 0 1px var(--contour-jaune), 0 -1px var(--contour-jaune),
+                 1px 1px var(--contour-jaune), -1px -1px var(--contour-jaune), 1px -1px var(--contour-jaune), -1px 1px var(--contour-jaune); }
+  #jeu .reponses { gap: 12px; }
+  #jeu .reponse { min-height: 84px; font-size: 1.4rem; }
+  .clavier { font-size: .85rem; }
+  @media (hover: none) { .clavier { display: none; } }
+  .exemple { display: flex; align-items: center; gap: 14px; }
+  .exemple .mini { font: 800 2rem var(--f-display); color: var(--encre-bleu); }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="barre">
+    <a class="retour" href="../../">← Méninges</a>
+    <h1><span>Couleurs piégées</span></h1>
+  </div>
+
+  <!-- 1. Intro -->
+  <section class="ecran" id="intro">
+    <h2>Couleurs piégées</h2>
+    <p>Un nom de couleur s'affiche, écrit dans une encre souvent différente. Touche la couleur de l'<strong>encre</strong>, pas le mot. Tu as 60 secondes&nbsp;!</p>
+    <div class="carte exemple">
+      <span class="mini">ROUGE</span>
+      <span>→ ici, il faut toucher <strong>Bleu</strong>.</span>
+    </div>
+    <p class="clavier">Au clavier&nbsp;: R, B, V, J (ou 1 à 4).</p>
+    <p id="record-intro"></p>
+    <div class="actions"><button class="btn principal" id="b-commencer" type="button">Commencer</button></div>
+  </section>
+
+  <!-- 2. Compte à rebours -->
+  <section class="ecran" id="decompte" hidden><div class="compte" id="compte"></div></section>
+
+  <!-- 3. Jeu -->
+  <section class="ecran" id="jeu" hidden>
+    <div class="info"><span>Points&nbsp;: <b id="points">0</b></span><span id="chrono">60 s</span></div>
+    <div class="progression"><i id="barre"></i></div>
+    <div class="mot" id="mot" aria-live="off"></div>
+    <div class="reponses" id="reponses">
+      <button class="reponse" type="button" data-couleur="rouge">Rouge</button>
+      <button class="reponse" type="button" data-couleur="bleu">Bleu</button>
+      <button class="reponse" type="button" data-couleur="vert">Vert</button>
+      <button class="reponse" type="button" data-couleur="jaune">Jaune</button>
+    </div>
+  </section>
+
+  <!-- 4. Résultat -->
+  <section class="ecran" id="resultat" hidden>
+    <h2 id="titre-resultat">Temps écoulé&nbsp;!</h2>
+    <div class="score" id="score"></div>
+    <div><span class="record" id="badge-record" hidden>Nouveau record</span></div>
+    <p class="detail" id="detail"></p>
+    <div class="actions">
+      <button class="btn principal" id="b-rejouer" type="button">Rejouer</button>
+      <a class="btn" href="../../" style="text-align:center;text-decoration:none">Autres exercices</a>
+    </div>
+  </section>
+</div>
+
+<script src="../../commun/commun.js"></script>
+<script src="logique.js"></script>
+<script>
+const SLUG = "couleurs-piegees";
+const M = Meninges;
+const L = CouleursPiegees;
+const $ = id => document.getElementById(id);
+const TOUCHES = { r: "rouge", b: "bleu", v: "vert", j: "jaune", "1": "rouge", "2": "bleu", "3": "vert", "4": "jaune" };
+
+let etat = null, question = null, debutQuestion = 0, debutPartie = 0, minuteur = null, enJeu = false;
+
+function afficherRecord() {
+  const r = M.meilleur(SLUG);
+  $("record-intro").textContent = r === null ? "Pas encore de record." : "Ton record : " + M.formatScore(SLUG, r);
+}
+
+function commencer() {
+  M.montrer("decompte");
+  M.compteARebours($("compte"), demarrerJeu);
+}
+
+function demarrerJeu() {
+  etat = L.nouvellePartie();
+  question = null;
+  $("points").textContent = "0";
+  M.montrer("jeu");
+  document.activeElement && document.activeElement.blur && document.activeElement.blur();
+  enJeu = true;
+  debutPartie = M.maintenant();
+  questionSuivante();
+  tic();
+  minuteur = setInterval(tic, 100);
+}
+
+function questionSuivante() {
+  question = L.generer(question);
+  const el = $("mot");
+  el.textContent = question.mot.toUpperCase();
+  el.dataset.encre = question.encre;
+  debutQuestion = M.maintenant();
+}
+
+function tic() {
+  const reste = Math.max(0, L.DUREE_MS - (M.maintenant() - debutPartie));
+  $("barre").style.width = (reste / L.DUREE_MS * 100) + "%";
+  $("chrono").textContent = Math.ceil(reste / 1000) + " s";
+  if (reste <= 0) finPartie();
+}
+
+function repondre(couleur) {
+  if (!enJeu) return;
+  const t = M.maintenant() - debutQuestion;
+  const juste = L.repondre(etat, question, couleur, t);
+  $("points").textContent = etat.points;
+  const bouton = document.querySelector('.reponse[data-couleur="' + couleur + '"]');
+  if (!juste) {
+    M.vibrer(60);
+    marquer(bouton, "faux", 280);
+    const mot = $("mot");
+    mot.classList.remove("flash-faux"); void mot.offsetWidth; mot.classList.add("flash-faux");
+  } else {
+    marquer(bouton, "bon", 120);
+  }
+  questionSuivante();
+}
+
+function marquer(bouton, classe, ms) {
+  bouton.classList.remove("bon", "faux");
+  bouton.classList.add(classe);
+  clearTimeout(bouton._t);
+  bouton._t = setTimeout(() => bouton.classList.remove(classe), ms);
+}
+
+function finPartie() {
+  if (!enJeu) return;
+  enJeu = false;
+  clearInterval(minuteur);
+  document.querySelectorAll(".reponse").forEach(b => b.classList.remove("bon", "faux"));
+  const moy = L.tempsMoyen(etat);
+  const s = n => n > 1 ? "s" : "";
+  let detail = etat.bons + " bonne" + s(etat.bons) + " réponse" + s(etat.bons) + ", " +
+               etat.erreurs + " erreur" + s(etat.erreurs) + ".";
+  if (moy !== null) detail += " Temps de réaction moyen : " + (moy / 1000).toFixed(2).replace(".", ",") + " s.";
+  terminer(etat.points, detail);
+}
+
+function terminer(score, detail) {
+  const r = M.enregistrer(SLUG, score);
+  $("score").innerHTML = M.echap(M.formatScore(SLUG, score));
+  $("badge-record").hidden = !r.record;
+  $("detail").textContent = detail;
+  afficherRecord();
+  M.montrer("resultat");
+}
+
+// Réponses : pointerdown pour la réactivité au doigt, click pour le clavier (Entrée/Espace sur un bouton).
+document.querySelectorAll(".reponse").forEach(b => {
+  b.addEventListener("pointerdown", e => { if (e.button !== 0) return; e.preventDefault(); repondre(b.dataset.couleur); });
+  b.addEventListener("click", e => { if (e.detail === 0) repondre(b.dataset.couleur); });
+});
+document.addEventListener("keydown", e => {
+  if (!enJeu || e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
+  const c = TOUCHES[e.key.toLowerCase()];
+  if (c) { e.preventDefault(); repondre(c); }
+});
+
+$("b-commencer").onclick = commencer;
+$("b-rejouer").onclick = commencer;
+afficherRecord();
+</script>
+</body>
+</html>

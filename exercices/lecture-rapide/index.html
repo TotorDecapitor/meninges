@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Lecture rapide · Méninges</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Méninges">
+<link rel="apple-touch-icon" href="../../icones/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="../../icones/favicon-32.png">
+<link rel="manifest" href="../../manifest.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Inter:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="../../commun/style.css">
+<style>
+  :root { --exo: #b23a7a; --exo-texte: #b23a7a; }
+  @media (prefers-color-scheme: dark) { :root { --exo-texte: #e489bb; } }
+  html, body { touch-action: manipulation; }
+  body.lecture .app { height: 100%; }
+  /* Pendant la lecture, on masque l'en-tête pour laisser toute la place au texte */
+  body.lecture .barre { display: none; }
+
+  #lecture { justify-content: flex-start; gap: 10px; min-height: 0; }
+  #lecture .info, #questions .info { flex: none; }
+  .texte {
+    flex: 1 1 auto; min-height: 0; overflow: auto; padding: 12px 14px;
+    -webkit-user-select: none; user-select: none;
+  }
+  .texte h3 { font-family: var(--f-display); font-size: 1.15em; margin: 0 0 .35em; color: var(--exo-texte); line-height: 1.2; }
+  .texte p { margin: 0; color: var(--ink); font-size: inherit; line-height: 1.5; text-wrap: pretty; hyphens: auto; -webkit-hyphens: auto; }
+  #b-lu { flex: none; min-height: 52px; }
+  #lecture .progression > i { transition: none; }
+  body.lecture .app { padding-block: 8px 10px; }
+  @media (max-height: 700px) {
+    #lecture { gap: 8px; }
+    .texte { padding: 10px 12px; }
+    .texte p { line-height: 1.45; }
+    #b-lu { min-height: 48px; padding-block: 12px; }
+  }
+  /* Très petite hauteur (Safari avec ses barres sur iPhone SE) : le temps restant passe dans le bouton */
+  .reste-btn { display: none; font-weight: 600; opacity: .85; }
+  @media (max-height: 600px) {
+    #lecture .info { display: none; }
+    .reste-btn { display: inline; }
+    #lecture { gap: 6px; }
+    .texte { padding: 8px 12px; }
+    .texte p { line-height: 1.4; }
+    .texte h3 { margin-bottom: .2em; }
+  }
+
+  #questions { justify-content: flex-start; padding-top: 6px; }
+  #questions .question { font-family: var(--f-display); font-weight: 800; font-size: 1.4rem; line-height: 1.25; color: var(--ink); margin: 6px 0 4px; text-wrap: balance; min-height: 3.75em; }
+  #props { --cols: 1; }
+  #props .reponse {
+    min-height: 58px; padding: 10px 16px; font: 600 1.1rem var(--f-body); text-align: left; line-height: 1.3;
+    transition: background-color .15s;
+  }
+  #props .reponse:disabled { cursor: default; }
+  #props .reponse.attenue { opacity: .55; }
+  #props .reponse:disabled:not(.bon):not(.faux) { color: var(--ink); }
+  .retour-q { min-height: 1.5em; font-weight: 700; text-align: center; }
+  .retour-q.ok { color: var(--bon); } .retour-q.ko { color: var(--faux); }
+  .intro-note { font-size: .95rem; }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="barre">
+    <a class="retour" href="../../">← Méninges</a>
+    <h1><span>Lecture rapide</span></h1>
+  </div>
+
+  <section class="ecran" id="intro">
+    <h2>Lecture rapide</h2>
+    <p>Un court texte s'affiche pendant 35 secondes au plus. Lis-le attentivement, puis réponds à 3 questions sur ses détails : chiffres, noms, couleurs…</p>
+    <p class="intro-note">Tu as fini plus tôt ? Touche « J'ai lu ». Le texte disparaît pendant les questions.</p>
+    <p id="record-intro"></p>
+    <div class="actions"><button class="btn principal" id="b-commencer" type="button">Commencer</button></div>
+  </section>
+
+  <section class="ecran" id="decompte" hidden><div class="compte" id="compte"></div></section>
+
+  <section class="ecran" id="lecture" hidden>
+    <div class="info"><span>Lis bien !</span><span id="reste">35 s</span></div>
+    <div class="progression"><i id="barre-lecture" style="width:100%"></i></div>
+    <article class="carte texte" id="texte" aria-live="off"><h3 id="titre-texte"></h3><p id="corps-texte"></p></article>
+    <button class="btn principal" id="b-lu" type="button">J'ai lu<span class="reste-btn" id="reste-btn"> · 35 s</span></button>
+  </section>
+
+  <section class="ecran" id="questions" hidden>
+    <div class="info"><span id="etape">Question 1 / 3</span><span id="bilan">0 bonne</span></div>
+    <div class="progression"><i id="barre-q"></i></div>
+    <p class="question" id="question"></p>
+    <div class="reponses" id="props"></div>
+    <p class="retour-q" id="retour-q" aria-live="polite"></p>
+  </section>
+
+  <section class="ecran" id="resultat" hidden>
+    <h2 id="titre-resultat">Terminé !</h2>
+    <div class="score" id="score"></div>
+    <div><span class="record" id="badge-record" hidden>Nouveau record</span></div>
+    <p class="detail" id="detail"></p>
+    <div class="actions">
+      <button class="btn principal" id="b-rejouer" type="button">Rejouer</button>
+      <a class="btn" href="../../" style="text-align:center;text-decoration:none">Autres exercices</a>
+    </div>
+  </section>
+</div>
+
+<script src="../../commun/commun.js"></script>
+<script src="textes.js"></script>
+<script src="logique.js"></script>
+<script>
+const SLUG = "lecture-rapide";
+const M = Meninges, L = LectureLogique;
+const DUREE = 35000;                 // temps de lecture maximal (ms)
+const CLE_RECENTS = "lecture-rapide-recents";
+const $ = id => document.getElementById(id);
+
+let partie = null;                   // { texte, mots, debut, tempsLecture, finie, i, bonnes, question }
+let rafLecture = 0, minuteur = 0;
+
+function afficherRecord() {
+  const r = M.meilleur(SLUG);
+  $("record-intro").textContent = r === null ? "Pas encore de record." : "Ton record : " + M.formatScore(SLUG, r);
+}
+
+function commencer() {
+  clearTimeout(minuteur);
+  const recents = M.lire(CLE_RECENTS, []);
+  const texte = L.choisirTexte(TEXTES_LECTURE, Array.isArray(recents) ? recents : []);
+  M.ecrire(CLE_RECENTS, L.noterRecent(Array.isArray(recents) ? recents : [], texte.id));
+  partie = { texte, mots: L.compterMots(texte.texte), i: 0, bonnes: 0 };
+  $("titre-texte").textContent = texte.titre;
+  $("corps-texte").textContent = L.insecables(texte.texte);
+  M.montrer("decompte");
+  M.compteARebours($("compte"), demarrerLecture);
+}
+
+// Ajuste la taille du texte (de 21 px à 17 px) pour qu'il tienne sans défilement
+function ajusterTexte() {
+  const boite = $("texte");
+  for (let px = 21; px >= 17; px -= 0.5) {
+    boite.style.fontSize = px + "px";
+    if (boite.scrollHeight <= boite.clientHeight + 1) return;
+  }
+}
+
+function demarrerLecture() {
+  document.body.classList.add("lecture");
+  M.montrer("lecture");
+  $("texte").scrollTop = 0;
+  ajusterTexte();
+  partie.debut = M.maintenant();
+  partie.finie = false;
+  const boucle = () => {
+    const ecoule = M.maintenant() - partie.debut;
+    const reste = Math.max(0, DUREE - ecoule);
+    $("barre-lecture").style.width = (reste / DUREE * 100) + "%";
+    const sec = Math.ceil(reste / 1000) + " s";
+    $("reste").textContent = sec;
+    $("reste-btn").textContent = " · " + sec;
+    if (reste <= 0) finirLecture(true);
+    else rafLecture = requestAnimationFrame(boucle);
+  };
+  boucle();
+}
+
+function finirLecture(tempsEcoule) {
+  if (!partie || partie.finie) return;
+  partie.finie = true;
+  cancelAnimationFrame(rafLecture);
+  partie.tempsLecture = Math.min(DUREE, M.maintenant() - partie.debut);
+  partie.tempsEcoule = !!tempsEcoule;
+  if (tempsEcoule) M.vibrer(60);
+  document.body.classList.remove("lecture");
+  M.montrer("questions");
+  afficherQuestion();
+}
+
+function afficherQuestion() {
+  const q = L.preparerQuestion(partie.texte.questions[partie.i], M.melanger);
+  partie.question = q;
+  $("etape").textContent = "Question " + (partie.i + 1) + " / 3";
+  $("bilan").textContent = partie.bonnes + (partie.bonnes > 1 ? " bonnes" : " bonne");
+  $("barre-q").style.width = (partie.i / 3 * 100) + "%";
+  $("question").textContent = L.insecables(q.q);
+  $("retour-q").textContent = "";
+  $("retour-q").className = "retour-q";
+  const zone = $("props");
+  zone.innerHTML = "";
+  q.propositions.forEach((p, k) => {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "reponse"; b.textContent = p;
+    b.onclick = () => repondre(k);
+    zone.appendChild(b);
+  });
+}
+
+function repondre(k) {
+  const q = partie.question;
+  const boutons = [...$("props").children];
+  if (boutons[0].disabled) return;
+  boutons.forEach(b => { b.disabled = true; });
+  const juste = k === q.bonne;
+  boutons[q.bonne].classList.add("bon");
+  if (!juste) {
+    boutons[k].classList.add("faux");
+    boutons.forEach((b, j) => { if (j !== k && j !== q.bonne) b.classList.add("attenue"); });
+    $("props").classList.add("flash-faux");
+    M.vibrer([40, 60, 40]);
+  } else {
+    boutons.forEach((b, j) => { if (j !== k) b.classList.add("attenue"); });
+    partie.bonnes++;
+  }
+  $("retour-q").textContent = juste ? "Bonne réponse !" : L.insecables("Raté : c'était « " + q.propositions[q.bonne] + " »");
+  $("retour-q").className = "retour-q " + (juste ? "ok" : "ko");
+  $("bilan").textContent = partie.bonnes + (partie.bonnes > 1 ? " bonnes" : " bonne");
+  $("barre-q").style.width = ((partie.i + 1) / 3 * 100) + "%";
+  minuteur = setTimeout(() => {
+    $("props").classList.remove("flash-faux");
+    partie.i++;
+    if (partie.i < 3) afficherQuestion(); else terminer();
+  }, juste ? 1000 : 1900);
+}
+
+function terminer() {
+  const score = partie.bonnes;
+  const r = M.enregistrer(SLUG, score);
+  const titres = ["On en relit un autre ?", "Pas mal !", "Bien joué !", "Parfait !"];
+  $("titre-resultat").textContent = titres[score];
+  $("score").innerHTML = M.echap(M.formatScore(SLUG, score));
+  $("badge-record").hidden = !r.record;
+  const temps = M.formatTemps(partie.tempsLecture) + " s";
+  const wpm = L.vitesse(partie.mots, partie.tempsLecture);
+  $("detail").textContent =
+    score + (score > 1 ? " bonnes réponses" : " bonne réponse") + " sur 3. " +
+    (partie.tempsEcoule ? "Temps écoulé : tu as lu pendant " + temps : "Texte lu en " + temps) +
+    " (" + partie.mots + " mots), soit " + wpm + " mots par minute.";
+  M.montrer("resultat");
+}
+
+$("b-commencer").onclick = commencer;
+$("b-rejouer").onclick = commencer;
+$("b-lu").onclick = () => finirLecture(false);
+window.addEventListener("resize", () => { if (document.body.classList.contains("lecture")) ajusterTexte(); });
+afficherRecord();
+</script>
+</body>
+</html>

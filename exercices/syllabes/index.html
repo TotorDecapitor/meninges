@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Compte les syllabes · Méninges</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Méninges">
+<link rel="apple-touch-icon" href="../../icones/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="../../icones/favicon-32.png">
+<link rel="manifest" href="../../manifest.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Inter:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="../../commun/style.css">
+<style>
+  :root { --exo: #1f8a8a; }
+  html, body { touch-action: manipulation; }
+  .exemple { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; color: var(--ink); line-height: 1.6; }
+  .exemple { display: flex; flex-wrap: wrap; gap: 4px 20px; }
+  .exemple span { white-space: nowrap; }
+  .exemple b { font-weight: 700; }
+
+  #jeu { justify-content: flex-start; gap: 14px; }
+  .mot-carte {
+    flex: 1; min-height: 150px; max-height: 260px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
+    background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 16px 12px; overflow: hidden;
+  }
+  .mot {
+    font-family: var(--f-display); font-weight: 800; font-size: 46px; line-height: 1.1; letter-spacing: -.01em;
+    white-space: nowrap; max-width: 100%; text-align: center; color: var(--ink);
+  }
+  .decoupe { min-height: 2.6em; text-align: center; font-weight: 600; font-size: 1.05rem; line-height: 1.3; color: var(--muted); }
+  .decoupe strong { display: block; font-family: var(--f-display); font-size: 1.45rem; letter-spacing: .02em; }
+  .decoupe.bon strong { color: var(--bon); }
+  .decoupe.faux { color: var(--faux); }
+  .decoupe.faux strong { color: var(--ink); }
+  .question { text-align: center; color: var(--muted); font-weight: 600; margin: 0; }
+  #choix { --cols: 3; }
+  #choix .reponse { min-height: 72px; font-size: 1.8rem; }
+  #choix .reponse:disabled { cursor: default; }
+  #choix .reponse:disabled:not(.bon):not(.faux) { opacity: .55; }
+  .rates { margin-top: 4px; font-size: .95rem; }
+  @media (max-height: 700px) {
+    .mot-carte { min-height: 130px; }
+    #choix .reponse { min-height: 64px; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="barre">
+    <a class="retour" href="../../">← Méninges</a>
+    <h1><span>Syllabes</span></h1>
+  </div>
+
+  <section class="ecran" id="intro">
+    <h2>Compte les syllabes</h2>
+    <p>Un mot s'affiche : touche le nombre de syllabes que tu entends en le disant à voix haute. On compte à l'oral, donc le « e » final muet ne compte pas.</p>
+    <div class="exemple"><span>«&nbsp;<b>pomme</b>&nbsp;» =&nbsp;1</span> <span>«&nbsp;<b>sou·ris</b>&nbsp;» =&nbsp;2</span> <span>«&nbsp;<b>cho·co·lat</b>&nbsp;» =&nbsp;3</span></div>
+    <p>15 mots, de plus en plus longs. Sur ordinateur, tu peux taper 1 à 6.</p>
+    <p id="record-intro"></p>
+    <div class="actions"><button class="btn principal" id="b-commencer" type="button">Commencer</button></div>
+  </section>
+
+  <section class="ecran" id="decompte" hidden><div class="compte" id="compte"></div></section>
+
+  <section class="ecran" id="jeu" hidden>
+    <div class="info"><span id="etape">1 / 15</span><span id="chrono">0,0 s</span></div>
+    <div class="progression"><i id="barre"></i></div>
+    <div class="mot-carte" id="carte">
+      <div class="mot" id="mot"></div>
+      <div class="decoupe" id="decoupe" aria-live="polite"></div>
+    </div>
+    <p class="question">Combien de syllabes ?</p>
+    <div class="reponses" id="choix">
+      <button class="reponse" type="button" data-n="1">1</button>
+      <button class="reponse" type="button" data-n="2">2</button>
+      <button class="reponse" type="button" data-n="3">3</button>
+      <button class="reponse" type="button" data-n="4">4</button>
+      <button class="reponse" type="button" data-n="5">5</button>
+      <button class="reponse" type="button" data-n="6">6</button>
+    </div>
+  </section>
+
+  <section class="ecran" id="resultat" hidden>
+    <h2 id="titre-resultat">Terminé !</h2>
+    <div class="score" id="score"></div>
+    <div><span class="record" id="badge-record" hidden>Nouveau record</span></div>
+    <p class="detail" id="detail"></p>
+    <p class="detail rates" id="rates" hidden></p>
+    <div class="actions">
+      <button class="btn principal" id="b-rejouer" type="button">Rejouer</button>
+      <a class="btn" href="../../" style="text-align:center;text-decoration:none">Autres exercices</a>
+    </div>
+  </section>
+</div>
+
+<script src="../../commun/commun.js"></script>
+<script src="mots.js"></script>
+<script src="logique.js"></script>
+<script>
+const SLUG = "syllabes";
+const M = Meninges;
+const L = SyllabesLogique;
+const PAUSE_BON = 650, PAUSE_FAUX = 1600;
+
+const $ = id => document.getElementById(id);
+const boutons = [...document.querySelectorAll("#choix .reponse")];
+
+let partie = [], index = 0, bonnes = 0, rates = [];
+let tempsCumule = 0, debutMot = 0, enAttente = true, minuteur = null, chronoT = null, jeton = 0;
+
+function afficherRecord() {
+  const r = M.meilleur(SLUG);
+  $("record-intro").textContent = r === null ? "Pas encore de record." : "Ton record : " + M.formatScore(SLUG, r);
+}
+
+function commencer() {
+  jeton++;
+  clearTimeout(minuteur); clearInterval(chronoT);
+  enAttente = true;
+  M.montrer("decompte");
+  const j = jeton;
+  M.compteARebours($("compte"), () => { if (j === jeton) demarrerJeu(); });
+}
+
+function demarrerJeu() {
+  partie = L.tirerPartie(window.MOTS_SYLLABES);
+  index = 0; bonnes = 0; rates = []; tempsCumule = 0;
+  M.montrer("jeu");
+  chronoT = setInterval(majChrono, 100);
+  afficherMot();
+}
+
+function tempsEcoule() { return tempsCumule + (enAttente ? 0 : M.maintenant() - debutMot); }
+function majChrono() { $("chrono").textContent = M.formatTemps(tempsEcoule()) + " s"; }
+
+// Réduit la taille du mot jusqu'à ce qu'il tienne sur une ligne
+function ajusterTaille(el) {
+  let t = 46;
+  el.style.fontSize = t + "px";
+  const max = el.parentElement.clientWidth - 24;
+  while (el.scrollWidth > max && t > 18) { t -= 2; el.style.fontSize = t + "px"; }
+}
+
+function afficherMot() {
+  const [mot] = partie[index];
+  $("etape").textContent = (index + 1) + " / " + L.NB_MOTS;
+  $("barre").style.width = (index / L.NB_MOTS * 100) + "%";
+  const elMot = $("mot");
+  elMot.textContent = mot;
+  ajusterTaille(elMot);
+  const dec = $("decoupe");
+  dec.className = "decoupe"; dec.innerHTML = "";
+  $("carte").classList.remove("flash-bon", "flash-faux");
+  boutons.forEach(b => { b.className = "reponse"; b.disabled = false; });
+  debutMot = M.maintenant();
+  enAttente = false;
+}
+
+function repondre(n) {
+  if (enAttente) return;
+  enAttente = true;
+  tempsCumule += M.maintenant() - debutMot;
+  majChrono();
+  const entree = partie[index];
+  const juste = L.verifier(entree, n);
+  const dec = $("decoupe");
+  boutons.forEach(b => {
+    b.disabled = true;
+    const v = +b.dataset.n;
+    if (v === entree[1]) b.classList.add("bon");
+    else if (v === n) b.classList.add("faux");
+  });
+  const carte = $("carte");
+  void carte.offsetWidth; // relance l'animation
+  if (juste) {
+    bonnes++;
+    carte.classList.add("flash-bon");
+    dec.className = "decoupe bon";
+    dec.innerHTML = "<strong>" + M.echap(entree[2]) + "</strong>";
+  } else {
+    rates.push(entree);
+    carte.classList.add("flash-faux");
+    M.vibrer(60);
+    dec.className = "decoupe faux";
+    dec.innerHTML = "<strong>" + M.echap(entree[2]) + "</strong>" + entree[1] + " syllabe" + (entree[1] > 1 ? "s" : "");
+  }
+  $("barre").style.width = ((index + 1) / L.NB_MOTS * 100) + "%";
+  const j = jeton;
+  minuteur = setTimeout(() => {
+    if (j !== jeton) return;
+    index++;
+    if (index < L.NB_MOTS) afficherMot(); else terminer();
+  }, juste ? PAUSE_BON : PAUSE_FAUX);
+}
+
+function terminer() {
+  clearInterval(chronoT);
+  const r = M.enregistrer(SLUG, bonnes);
+  $("score").innerHTML = M.echap(M.formatScore(SLUG, bonnes));
+  $("badge-record").hidden = !r.record;
+  $("titre-resultat").textContent = bonnes === L.NB_MOTS ? "Sans faute !" : bonnes >= 12 ? "Très bien !" : bonnes >= 8 ? "Bien joué !" : "Terminé !";
+  const s = Math.round(tempsCumule / 1000);
+  $("detail").textContent = bonnes + (bonnes > 1 ? " bonnes réponses" : " bonne réponse") + " en " + s + " s.";
+  const elRates = $("rates");
+  elRates.hidden = rates.length === 0;
+  elRates.textContent = rates.length ? "À revoir : " + rates.map(e => e[2] + " (" + e[1] + ")").join(", ") + "." : "";
+  M.montrer("resultat");
+  afficherRecord();
+}
+
+boutons.forEach(b => b.addEventListener("click", () => repondre(+b.dataset.n)));
+document.addEventListener("keydown", e => {
+  if ($("jeu").hidden || e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
+  const n = parseInt(e.key, 10);
+  if (n >= 1 && n <= 6) { e.preventDefault(); repondre(n); }
+});
+window.addEventListener("resize", () => { if (!$("jeu").hidden) ajusterTaille($("mot")); });
+$("b-commencer").onclick = commencer;
+$("b-rejouer").onclick = commencer;
+afficherRecord();
+</script>
+</body>
+</html>

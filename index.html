@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Méninges</title>
+<meta name="description" content="Petits exercices quotidiens pour faire travailler ta tête : calcul, mémoire, attention, lecture.">
+<meta name="theme-color" content="#eef1f6" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#11161f" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Méninges">
+<link rel="apple-touch-icon" href="icones/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="icones/favicon-32.png">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Inter:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="commun/style.css">
+<style>
+  .tete { display: flex; flex-direction: column; gap: 4px; padding-top: 8px; }
+  .tete h1 { font-family: var(--f-display); font-weight: 800; font-size: 2.2rem; margin: 0; letter-spacing: -.02em; }
+  .tete p { margin: 0; color: var(--muted); line-height: 1.5; }
+  .jour { display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: .9rem; color: var(--muted); }
+  .jour .points { display: flex; gap: 5px; }
+  .jour .points i { width: 12px; height: 12px; border-radius: 50%; background: var(--key); display: block; }
+  .jour .points i.fait { background: var(--c); }
+  .liste { display: flex; flex-direction: column; gap: 10px; list-style: none; margin: 0; padding: 0; }
+  .exo {
+    display: grid; grid-template-columns: 46px 1fr auto; align-items: center; gap: 14px;
+    background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 14px;
+    text-decoration: none; color: var(--ink); touch-action: manipulation;
+  }
+  .exo:active { transform: scale(.99); }
+  .exo .pastille { width: 46px; height: 46px; border-radius: 12px; background: var(--c); display: grid; place-items: center;
+    color: #fff; font: 800 1.15rem var(--f-display); letter-spacing: -.02em; }
+  .exo .txt { min-width: 0; }
+  .exo strong { display: block; font-family: var(--f-display); font-size: 1.08rem; }
+  .exo span.resume { display: block; color: var(--muted); font-size: .88rem; line-height: 1.35; margin-top: 2px; }
+  .exo .rec { text-align: right; font-size: .75rem; color: var(--muted); font-weight: 600; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .exo .rec b { display: block; font-size: 1rem; color: var(--ink); }
+  .exo .fait { color: var(--bon); font-size: .75rem; }
+  .pied { color: var(--muted); font-size: .8rem; text-align: center; line-height: 1.5; }
+  .pied a { color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="tete">
+    <h1>Méninges</h1>
+    <p>Quelques minutes par jour pour faire travailler ta tête. Bats tes propres records.</p>
+  </header>
+  <div class="jour" id="jour"></div>
+  <ul class="liste" id="liste"></ul>
+  <p class="pied">Tes scores restent dans ce téléphone. <a href="https://totordecapitor.github.io/">Autres jeux</a></p>
+</div>
+<script src="commun/commun.js"></script>
+<script>
+const M = Meninges;
+const auj = new Date().toISOString().slice(0, 10);
+const SYMBOLES = { "calcul-eclair": "×", "couleurs-piegees": "Aa", "memoire-mots": "≡", "maison-qui-compte": "⌂", "ordre-nombres": "123", "syllabes": "a·b", "lecture-rapide": "¶" };
+const initiales = (nom, slug) => SYMBOLES[slug] || nom[0];
+let faits = 0;
+document.getElementById("liste").innerHTML = M.EXERCICES.map(e => {
+  const r = M.meilleur(e.slug);
+  const fait = M.historique(e.slug).some(h => h.date === auj);
+  if (fait) faits++;
+  return `<li><a class="exo" href="exercices/${e.slug}/" style="--c:${e.couleur}">
+    <span class="pastille" aria-hidden="true">${M.echap(initiales(e.nom, e.slug))}</span>
+    <span class="txt"><strong>${M.echap(e.nom)}</strong><span class="resume">${M.echap(e.resume)}</span></span>
+    <span class="rec">${r === null ? "à découvrir" : "record<b>" + M.echap(M.formatScore(e.slug, r)) + "</b>"}${fait ? '<span class="fait">✓ fait aujourd\'hui</span>' : ""}</span>
+  </a></li>`;
+}).join("");
+document.getElementById("jour").innerHTML = `<span>Aujourd'hui : ${faits} / ${M.EXERCICES.length}</span><span class="points">` +
+  M.EXERCICES.map(e => `<i class="${M.historique(e.slug).some(h => h.date === auj) ? "fait" : ""}" style="--c:${e.couleur}" title="${M.echap(e.nom)}"></i>`).join("") + "</span>";
+</script>
+</body>
+</html>
