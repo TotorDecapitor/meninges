@@ -40,6 +40,9 @@
   .exo .rec { text-align: right; font-size: .75rem; color: var(--muted); font-weight: 600; white-space: nowrap; font-variant-numeric: tabular-nums; }
   .exo .rec b { display: block; font-size: 1rem; color: var(--ink); }
   .exo .fait { color: var(--bon); font-size: .75rem; }
+  .autres { font-family: var(--f-display); font-size: 1.05rem; margin: 8px 0 0; color: var(--muted); }
+  .exo.jeu img.pastille { display: block; object-fit: cover; }
+  .exo.jeu .rec { font-size: 1.3rem; }
   .pied { color: var(--muted); font-size: .8rem; text-align: center; line-height: 1.5; }
   .pied a { color: var(--muted); }
 </style>
@@ -52,7 +55,13 @@
   </header>
   <div class="jour" id="jour"></div>
   <ul class="liste" id="liste"></ul>
-  <p class="pied">Tes scores restent dans ce téléphone. <a href="https://totordecapitor.github.io/">Autres jeux</a></p>
+  <h2 class="autres">Un autre jeu</h2>
+  <a class="exo jeu" href="../le-mot-juste/">
+    <img class="pastille" src="../le-mot-juste/icones/icone-192.png" alt="" width="46" height="46">
+    <span class="txt"><strong>Le Mot Juste</strong><span class="resume">Trouve le mot de 5 à 8 lettres en 6 essais, puis découvre sa définition.</span></span>
+    <span class="rec" aria-hidden="true">→</span>
+  </a>
+  <p class="pied">Tes scores restent dans ce téléphone. <a href="../">Tous mes jeux</a></p>
 </div>
 <script src="commun/commun.js"></script>
 <script>
